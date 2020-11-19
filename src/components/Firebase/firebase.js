@@ -41,6 +41,14 @@ class Firebase {
   user = (uid) => this.db.ref(`users/${uid}`);
 
   users = () => this.db.ref("users");
+
+  // ***** CHAT API *****
+
+  chat = (id) => this.db.ref(`chats/${id}`);
+
+  chats = () => this.db.ref("chats");
+
+  firstChat = () => this.db.ref("chats").limitToLast(1);
 }
 
 export default Firebase;

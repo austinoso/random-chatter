@@ -1,6 +1,4 @@
 import React, { Component } from "react";
-import { fromRenderProps } from "recompose";
-
 import { withFirebase } from "../Firebase";
 
 const INITIAL_STATE = {
