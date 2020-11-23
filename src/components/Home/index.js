@@ -1,81 +1,76 @@
 import React, { Component } from "react";
-import { compose } from "recompose";
 
 import { withAuthorization } from "../Session";
 import { withFirebase } from "../Firebase";
-import ChatRooms from "../Chat";
+import ChatRoom from "../Chat";
+import ChatButton from "./chatButton";
 
-const HomePage = () => (
-  <div>
-    <h1>Home Page</h1>
-    <p>The Home Page is accessible by every signed in user.</p>
-    <ChatRooms />
-  </div>
-);
+const INITAL_STATE = {
+  currentChat: false,
+  unsub: "NO CONNECTED CHAT",
+};
 
-// class HomePage extends Component {
-//   constructor(props) {
-//     super(props);
+class HomePage extends Component {
+  constructor(props) {
+    super(props);
 
-//     this.state = {
-//       loading: false,
-//       users: [],
-//     };
-//   }
+    this.state = { ...INITAL_STATE };
+  }
 
-//   componentDidMount() {
-//     this.setState({ loading: true });
+  componentDidMount = () => {
+    this.getUsersCurrentChat();
+  };
 
-//     this.props.firebase.users().on("value", (snapshot) => {
-//       const usersObject = snapshot.val();
+  componentWillUnmount = () => {
+    if (this.chatConnection) this.chatConnection();
+  };
 
-//       const usersList = Object.keys(usersObject).map((key) => ({
-//         ...usersObject[key],
-//         uid: key,
-//       }));
+  getUsersCurrentChat = async () => {
+    const { firebase } = this.props;
+    firebase
+      .user(firebase.auth.currentUser.uid)
+      .get()
+      .then((doc) => {
+        const { currentChatId } = doc.data();
+        if (currentChatId) this.startListeningToChat(currentChatId);
+      });
+  };
 
-//       this.setState({
-//         users: usersList,
-//         loading: false,
-//       });
-//     });
-//   }
+  startListeningToChat = (chatId) => {
+    const { firebase } = this.props;
+    if (this.chatConnection) this.leaveChat();
 
-//   componentWillUnmount() {
-//     this.props.firebase.users().off();
-//   }
+    const unsub = firebase.chat(chatId).onSnapshot((doc) => {
+      const chat = doc.data();
+      this.setState({ currentChat: { uid: chatId, ...chat } });
+    });
 
-//   render() {
-//     const { users, loading } = this.state;
+    this.setState({ unsub });
+  };
 
-//     return (
-//       <div>
-//         <h1>Home</h1>
-//         {loading && <div>Loading ...</div>}
+  leaveChat = () => {
+    this.state.unsub();
 
-//         <UserList users={users} />
-//       </div>
-//     );
-//   }
-// }
+    this.setState(INITAL_STATE);
+  };
 
-// const UserList = ({ users }) => (
-//   <ul>
-//     {users.map((user) => (
-//       <li key={user.uid}>
-//         <span>
-//           <strong>ID:</strong> {user.uid}
-//         </span>
-//         <span>
-//           <strong>E-Mail:</strong> {user.email}
-//         </span>
-//         <span>
-//           <strong>Username:</strong> {user.username}
-//         </span>
-//       </li>
-//     ))}
-//   </ul>
-// );
+  render() {
+    return (
+      <div>
+        <h1>Home Page</h1>
+        <p>The Home Page is accessible by every signed in user.</p>
+        {!!this.state.currentChat.uid && (
+          <ChatRoom chat={this.state.currentChat} />
+        )}
+        <ChatButton
+          chat={this.state.currentChat}
+          setCurrentChat={this.startListeningToChat}
+          leaveChat={this.leaveChat}
+        />
+      </div>
+    );
+  }
+}
 
 const condition = (authUser) => !!authUser;
 
