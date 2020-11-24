@@ -1,48 +1,82 @@
 import React, { Component } from "react";
 
+import { withAuthorization } from "../Session";
 import { withFirebase } from "../Firebase";
-import MessageBox from "./Messagebox";
+import ChatButton from "./chatButton";
+import Messages from "./Messages";
+import MessageForm from "./MessageForm";
+import { AppBar } from "@material-ui/core";
 
-class ChatRoom extends Component {
+const INITAL_STATE = {
+  currentChat: false,
+  unsub: "NO CONNECTED CHAT",
+};
+
+class ChatPage extends Component {
   constructor(props) {
     super(props);
-    this.state = { messages: [] };
+
+    this.state = { ...INITAL_STATE };
   }
 
   componentDidMount = () => {
-    const { firebase, chat } = this.props;
-    console.log(chat.uid);
-
-    firebase.chatMessages(chat.uid).on("child_added", (data) => {
-      const messageObject = { content: data.val().content, uid: data.key };
-      this.setState({ messages: this.state.messages.concat(messageObject) });
-    });
+    this.getUsersCurrentChat();
   };
 
   componentWillUnmount = () => {
-    const { firebase, chat } = this.props;
-
-    firebase.chatMessages(chat.uid).off();
+    if (this.chatConnection) this.state.unsub();
   };
 
-  getMessages = () => {
-    const messages = [];
-    this.state.messages.forEach((message) => {
-      messages.push(<li key={message.uid}>{message.content}</li>);
+  getUsersCurrentChat = async () => {
+    const { firebase } = this.props;
+    firebase
+      .user(firebase.auth.currentUser.uid)
+      .get()
+      .then((doc) => {
+        const { currentChatId } = doc.data();
+        if (currentChatId) this.startListeningToChat(currentChatId);
+      });
+  };
+
+  startListeningToChat = (chatId) => {
+    const { firebase } = this.props;
+    if (this.chatConnection) this.leaveChat();
+
+    const unsub = firebase.chat(chatId).onSnapshot((doc) => {
+      const chat = doc.data();
+      this.setState({ currentChat: { uid: chatId, ...chat } });
     });
 
-    return messages;
+    this.setState({ unsub });
+  };
+
+  leaveChat = () => {
+    this.state.unsub();
+
+    this.setState(INITAL_STATE);
   };
 
   render = () => {
+    const { currentChat } = this.state;
+
     return (
-      <div>
-        <h1>This is a chat, currently {this.state.status} </h1>
-        <ul>{this.getMessages()}</ul>
-        {this.props.chat.active && <MessageBox chatId={this.props.chat.uid} />}
-      </div>
+      <>
+        <AppBar position="fixed">
+          <ChatButton
+            chat={currentChat}
+            setCurrentChat={this.startListeningToChat}
+            leaveChat={this.leaveChat}
+          />
+        </AppBar>
+        {currentChat.active && (
+          <Messages chat={currentChat} leaveChat={this.leaveChat} />
+        )}
+        <MessageForm chat={currentChat} />
+      </>
     );
   };
 }
 
-export default withFirebase(ChatRoom);
+const condition = (authUser) => !!authUser;
+
+export default withFirebase(withAuthorization(condition)(ChatPage));

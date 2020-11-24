@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import Button from "@material-ui/core/Button";
 
 import { withFirebase } from "../Firebase";
 
@@ -15,7 +16,7 @@ class ChatButton extends Component {
   };
 
   onEndClicked = () => {
-    const { firebase, chat, leaveChat } = this.props;
+    const { firebase, chat } = this.props;
 
     firebase
       .user(chat.startingUser.uid)
@@ -27,12 +28,8 @@ class ChatButton extends Component {
           firebase.user(chat.joiningUser.uid).update({
             currentChatId: null,
           });
-        firebase
-          .chat(chat.uid)
-          .delete()
-          .then(() => {
-            leaveChat();
-          });
+        firebase.chat(chat.uid).delete();
+        firebase.chatMessages(chat.uid).remove();
       });
   };
 
@@ -78,9 +75,13 @@ class ChatButton extends Component {
     const { chat } = this.props;
 
     return !chat ? (
-      <button onClick={this.onStartClicked}>Start Chat</button>
+      <Button onClick={this.onStartClicked} variant="contained" color="primary">
+        Start Chat
+      </Button>
     ) : (
-      <button onClick={this.onEndClicked}>End Chat</button>
+      <Button onClick={this.onEndClicked} variant="contained" color="primary">
+        End Chat
+      </Button>
     );
   };
 }
